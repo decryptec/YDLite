@@ -8,3 +8,7 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
   info = ydl.extract_info(URL, downdload=False)
 
   print(json.dumps(ydl.sanitize_info(info)))
+
+  error_code = ydl.download_with_info_file(info)
+print('Failed to download' if error_code
+      else 'Successfully downloaded'
