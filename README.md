@@ -9,7 +9,7 @@ A lightweight web interface for [yt-dlp](https://github.com/yt-dlp/yt-dlp), buil
 - View download progress and status
 - Powered by `yt-dlp` and `Flask`
 
-## 🛠 Requirements
+## Requirements
 
 - Python 3.7+
 - `yt-dlp`
