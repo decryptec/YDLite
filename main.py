@@ -64,7 +64,6 @@ def url_download():
             sanitized_info = ydl.sanitize_info(info)
             error_code = ydl.download([url])
 
-            # Explicit status assignment
             if error_code == 0:
                 status = "success"
             else:
