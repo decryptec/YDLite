@@ -1,9 +1,9 @@
+import os
 import yt_dlp
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, render_template_string, send_file
 
 app = Flask(__name__)
 
-# Simple HTML form with checkboxes
 form_html = """
 <!doctype html>
 <html>
@@ -37,19 +37,16 @@ def index():
 def url_download():
     url = request.form.get("url")
     if not url:
-        return jsonify({"error": "Missing 'url' parameter"}), 400
+        return "Missing URL", 400
 
     selected_options = request.form.getlist("options")
 
-    # Base yt-dlp options
     ydl_opts = {
         "outtmpl": "%(title)s.%(ext)s",
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0"  # helps avoid 403 errors
-        }
+        "http_headers": {"User-Agent": "Mozilla/5.0"},
+        "nocheckcertificate": True
     }
 
-    # Map checkbox values to yt-dlp options
     if "format_best" in selected_options:
         ydl_opts["format"] = "best"
     if "format_audio" in selected_options:
@@ -64,29 +61,16 @@ def url_download():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            sanitized_info = ydl.sanitize_info(info)
-            error_code = ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
 
-            if error_code == 0:
-                status = "success"
-            else:
-                status = "failed"
-
-            response = {
-                "status": status,
-                "info": sanitized_info,
-                "options_used": ydl_opts
-            }
-
-            return jsonify(response)
+        if os.path.exists(filename):
+            return send_file(filename, as_attachment=True)
+        else:
+            return "Download failed", 500
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+        return f"Error: {e}", 500
 
-# Run the Flask app
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
