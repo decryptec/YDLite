@@ -8,20 +8,22 @@ form_html = """
 <!doctype html>
 <html>
   <head>
-    <title>LAN Video Downloader</title>
+    <title>LAN Downloader</title>
   </head>
   <body>
-    <h2>Download a Video</h2>
+    <h2>Download YouTube</h2>
     <form method="POST" action="/download">
       <label>Video URL:</label><br>
       <input type="text" name="url" required><br><br>
 
       <h3>Options:</h3>
-      <input type="checkbox" name="options" value="format_best"> Best Quality<br>
-      <input type="checkbox" name="options" value="format_audio"> Audio Only<br>
+      <input type="checkbox" name="options" value="add_metadata"> Add Metadata<br>
       <input type="checkbox" name="options" value="write_subs"> Download Subtitles<br>
-      <input type="checkbox" name="options" value="write_thumbnail"> Download Thumbnail<br>
-      <input type="checkbox" name="options" value="no_playlist"> Single Video Only (no playlist)<br><br>
+      <input type="checkbox" name="options" value="embed_thumbnail"> Embed Thumbnail<br>
+      <input type="checkbox" name="options" value="extract_audio"> Extract Audio<br>
+      <input type="radio" name="format" value="mp3" checked> MP3 Audio<br>
+      <input type="radio" name="format" value="mp4"> MP4 Video<br><br>
+      <input type="checkbox" name="options" value="delete_after"> Delete after download<br><br>
 
       <button type="submit">Download</button>
     </form>
@@ -40,19 +42,21 @@ def url_download():
         return "Missing URL", 400
 
     selected_options = request.form.getlist("options")
+    chosen_format = request.form.get("format")
 
     cmd = ["yt-dlp", "-o", "%(title)s.%(ext)s"]
 
-    if "format_best" in selected_options:
-        cmd += ["-f", "best"]
-    if "format_audio" in selected_options:
-        cmd += ["-f", "bestaudio/best"]
+    if "add_metadata" in selected_options:
+        cmd += ["--add-metadata"]
     if "write_subs" in selected_options:
         cmd += ["--write-subs", "--sub-lang", "en"]
-    if "write_thumbnail" in selected_options:
-        cmd += ["--write-thumbnail"]
-    if "no_playlist" in selected_options:
-        cmd += ["--no-playlist"]
+    if "embed_thumbnail" in selected_options:
+        cmd += ["--embed-thumbnail"]
+
+    if chosen_format == "mp3":
+        cmd += ["--extract-audio", "--audio-format", "mp3"]
+    elif chosen_format == "mp4":
+        cmd += ["-f", "mp4"]
 
     cmd.append(url)
 
@@ -66,7 +70,14 @@ def url_download():
         reverse=True
     )
     if files:
-        return send_file(files[0], as_attachment=True)
+        filename = files[0]
+        response = send_file(filename, as_attachment=True)
+        if "delete_after" in selected_options:
+            try:
+                os.remove(filename)
+            except Exception:
+                pass
+        return response
     else:
         return "Download failed", 500
 
