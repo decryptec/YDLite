@@ -56,19 +56,19 @@ def url_download():
 
     cmd.append(url)
 
-    try:
-        subprocess.run(cmd, check=True)
-        files = sorted(
-            [f for f in os.listdir(".") if os.path.isfile(f)],
-            key=lambda x: os.path.getmtime(x),
-            reverse=True
-        )
-        if files:
-            return send_file(files[0], as_attachment=True)
-        else:
-            return "Download failed", 500
-    except subprocess.CalledProcessError as e:
-        return f"Error running yt-dlp: {e}", 500
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        return f"yt-dlp failed:\n{result.stderr}", 500
+
+    files = sorted(
+        [f for f in os.listdir(".") if os.path.isfile(f)],
+        key=lambda x: os.path.getmtime(x),
+        reverse=True
+    )
+    if files:
+        return send_file(files[0], as_attachment=True)
+    else:
+        return "Download failed", 500
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
