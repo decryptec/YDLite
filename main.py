@@ -41,11 +41,15 @@ def url_download():
 
     selected_options = request.form.getlist("options")
 
-    # Map checkbox values to yt-dlp options
+    # Base yt-dlp options
     ydl_opts = {
-        "outtmpl": "%(title)s.%(ext)s"
+        "outtmpl": "%(title)s.%(ext)s",
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0"  # helps avoid 403 errors
+        }
     }
 
+    # Map checkbox values to yt-dlp options
     if "format_best" in selected_options:
         ydl_opts["format"] = "best"
     if "format_audio" in selected_options:
@@ -82,3 +86,7 @@ def url_download():
             "status": "error",
             "message": str(e)
         }), 500
+
+# Run the Flask app
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
