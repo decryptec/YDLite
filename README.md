@@ -16,6 +16,9 @@ Easily download videos or audio from supported platforms using a clean and minim
 - Files are downloaded to the host machine and can be kept or auto‑deleted
 - Powered by `yt-dlp` and `Flask`
 
+## Usage
+- Use python to run either via_cli.py for simple middleman or embed_api.py that uses built-in yt-dlp methods
+
 ## Requirements
 
 - Python 3.7+
