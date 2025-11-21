@@ -31,24 +31,6 @@ def my_hook(d):
     if d['status'] == 'finished':
         print('Done downloading, now post-processing ...')
 
-class MyCustomPP(yt_dlp.postprocessor.PostProcessor):
-    def run(self, info):
-        self.to_screen('Custom PostProcessor: Doing stuff')
-        return [], info
-
-def format_selector(ctx, preferred_ext="mp4"):
-    formats = ctx.get('formats')[::-1]
-    best_video = next(f for f in formats if f['vcodec'] != 'none' and f['acodec'] == 'none')
-    audio_ext = {'mp4': 'm4a', 'webm': 'webm'}[preferred_ext]
-    best_audio = next(f for f in formats if (
-        f['acodec'] != 'none' and f['vcodec'] == 'none' and f['ext'] == audio_ext))
-    yield {
-        'format_id': f'{best_video["format_id"]}+{best_audio["format_id"]}',
-        'ext': best_video['ext'],
-        'requested_formats': [best_video, best_audio],
-        'protocol': f'{best_video["protocol"]}+{best_audio["protocol"]}'
-    }
-
 # --- Route ---
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -73,7 +55,6 @@ def index():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
-                # Ensure extension matches codec
                 base, _ = os.path.splitext(download_path)
                 download_path = f"{base}.{codec}"
             return send_file(download_path, as_attachment=True)
@@ -103,19 +84,10 @@ def index():
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
             return send_file(download_path, as_attachment=True)
 
-        elif mode == "postprocessor":
-            when = request.form.get("pp_when", "pre_process")
-            ydl_opts = {'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s')}
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.add_post_processor(MyCustomPP(), when=when)
-                info = ydl.extract_info(url, download=True)
-                download_path = info.get("_filename") or ydl.prepare_filename(info)
-            return send_file(download_path, as_attachment=True)
-
-        elif mode == "format_selector":
-            preferred_ext = request.form.get("preferred_ext", "mp4")
+        elif mode == "best_video":
+            # Default to MP4 output
             ydl_opts = {
-                'format': lambda ctx: format_selector(ctx, preferred_ext),
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                 'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s')
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -168,22 +140,9 @@ def index():
                 <input type="checkbox" name="debug" value="true">
             </div>
 
-            <label><input type="radio" name="mode" value="postprocessor" onclick="showSettings('postprocessor')"> Custom PostProcessor</label><br>
-            <div id="postprocessor-settings" style="display:none; margin-left:20px;">
-                <label>When to run:</label>
-                <select name="pp_when">
-                    <option value="pre_process">Pre-process</option>
-                    <option value="post_process">Post-process</option>
-                </select>
-            </div>
-
-            <label><input type="radio" name="mode" value="format_selector" onclick="showSettings('format_selector')"> Custom Format Selector</label><br>
-            <div id="format_selector-settings" style="display:none; margin-left:20px;">
-                <label>Preferred Extension:</label>
-                <select name="preferred_ext">
-                    <option value="mp4">MP4</option>
-                    <option value="webm">WebM</option>
-                </select>
+            <label><input type="radio" name="mode" value="best_video" onclick="showSettings('best_video')"> Download Best Video (MP4)</label><br>
+            <div id="best_video-settings" style="display:none; margin-left:20px;">
+                <p>Downloads best available MP4 video + M4A audio.</p>
             </div>
 
             <br>
