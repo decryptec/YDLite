@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, send_file
+from flask import Flask, request, render_template_string, send_file, after_this_request
 import yt_dlp
 import os
 import json
@@ -8,7 +8,7 @@ app = Flask(__name__)
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# --- Helpers ---
+#Options
 def longer_than(info, min_duration, *, incomplete):
     duration = info.get('duration')
     if duration and duration < min_duration:
@@ -31,7 +31,7 @@ def my_hook(d):
     if d['status'] == 'finished':
         print('Done downloading, now post-processing ...')
 
-# --- Route ---
+#Route
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = ""
@@ -57,7 +57,6 @@ def index():
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
                 base, _ = os.path.splitext(download_path)
                 download_path = f"{base}.{codec}"
-            return send_file(download_path, as_attachment=True)
 
         elif mode == "filter":
             min_duration = int(request.form.get("min_duration", 60))
@@ -70,7 +69,6 @@ def index():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
-            return send_file(download_path, as_attachment=True)
 
         elif mode == "logger":
             debug = request.form.get("debug") == "true"
@@ -82,10 +80,8 @@ def index():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
-            return send_file(download_path, as_attachment=True)
 
         elif mode == "best_video":
-            # Default to MP4 output
             ydl_opts = {
                 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                 'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s')
@@ -93,6 +89,17 @@ def index():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
+
+        #Delete file after sending
+        if download_path:
+            @after_this_request
+            def remove_file(response):
+                try:
+                    os.remove(download_path)
+                    print(f"Deleted {download_path}")
+                except Exception as e:
+                    print(f"Error deleting file: {e}")
+                return response
             return send_file(download_path, as_attachment=True)
 
     # frontend form
@@ -157,4 +164,4 @@ def index():
     return render_template_string(html, result=result)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
