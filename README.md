@@ -17,7 +17,7 @@ Easily download videos or audio from supported platforms using a clean and minim
 - Powered by `yt-dlp` and `Flask`
 
 ## Usage
-- Use python to run either via_cli.py for simple middleman or app.py for advanced options
+- Run "python app.py"
 
 ## Requirements
 
