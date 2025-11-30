@@ -1,7 +1,7 @@
 # Simple yt-dlp Frontend UI
 
 A lightweight web interface for [yt-dlp](https://github.com/yt-dlp/yt-dlp), built with Flask.  
-Quickly download videos or audio from supported platforms using a clean and minimal browser UI.
+Download videos or audio from supported platforms using a clean and minimal browser UI.
 
 ## Features
 
