@@ -1,7 +1,6 @@
 from flask import Flask, request, render_template_string, send_file, after_this_request
 import yt_dlp
 import os
-import json
 
 app = Flask(__name__)
 
@@ -32,7 +31,7 @@ def my_hook(d):
         print('Done downloading, now post-processing ...')
 
 # Common options builder
-def build_common_opts(download_path, write_subs=False):
+def build_common_opts(download_path, include_subs=False):
     opts = {
         'outtmpl': download_path,
         'postprocessors': [
@@ -41,7 +40,7 @@ def build_common_opts(download_path, write_subs=False):
         ],
         'writethumbnail': True,
     }
-    if write_subs:
+    if include_subs:
         opts['writesubtitles'] = True
         opts['subtitleslangs'] = ['en']  # adjust language if needed
     return opts
@@ -53,14 +52,14 @@ def index():
     if request.method == "POST":
         url = request.form.get("URL")
         mode = request.form.get("mode")
-        write_subs = request.form.get("write_subs") == "true"
+        include_subs = request.form.get("include_subs") == "true"
         download_path = None
 
         if mode == "audio":
             codec = request.form.get("codec", "m4a")
             ydl_opts = build_common_opts(
                 os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                write_subs=write_subs
+                include_subs=include_subs
             )
             ydl_opts['format'] = 'bestaudio/best'
             ydl_opts['postprocessors'].insert(0, {
@@ -79,7 +78,7 @@ def index():
                 return longer_than(info, min_duration, incomplete=incomplete)
             ydl_opts = build_common_opts(
                 os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                write_subs=write_subs
+                include_subs=include_subs
             )
             ydl_opts['match_filter'] = custom_filter
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -90,7 +89,7 @@ def index():
             debug = request.form.get("debug") == "true"
             ydl_opts = build_common_opts(
                 os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                write_subs=write_subs
+                include_subs=include_subs
             )
             ydl_opts['logger'] = MyLogger(debug=debug)
             ydl_opts['progress_hooks'] = [my_hook]
@@ -101,7 +100,7 @@ def index():
         elif mode == "best_video":
             ydl_opts = build_common_opts(
                 os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                write_subs=write_subs
+                include_subs=include_subs
             )
             ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -146,31 +145,31 @@ def index():
                     <option value="mp3">mp3</option>
                     <option value="wav">wav</option>
                 </select><br>
-                <label>Download Subtitles:</label>
-                <input type="checkbox" name="write_subs" value="true">
+                <label>Include Subs if Any:</label>
+                <input type="checkbox" name="include_subs" value="true">
             </div>
 
             <label><input type="radio" name="mode" value="filter" onclick="showSettings('filter')"> Filter Videos</label><br>
             <div id="filter-settings" style="display:none; margin-left:20px;">
                 <label>Minimum Duration (seconds):</label>
                 <input type="number" name="min_duration" value="60"><br>
-                <label>Download Subtitles:</label>
-                <input type="checkbox" name="write_subs" value="true">
+                <label>Include Subs if Any:</label>
+                <input type="checkbox" name="include_subs" value="true">
             </div>
 
             <label><input type="radio" name="mode" value="logger" onclick="showSettings('logger')"> Logger + Progress Hook</label><br>
             <div id="logger-settings" style="display:none; margin-left:20px;">
                 <label>Enable Debug:</label>
                 <input type="checkbox" name="debug" value="true"><br>
-                <label>Download Subtitles:</label>
-                <input type="checkbox" name="write_subs" value="true">
+                <label>Include Subs if Any:</label>
+                <input type="checkbox" name="include_subs" value="true">
             </div>
 
             <label><input type="radio" name="mode" value="best_video" onclick="showSettings('best_video')"> Download Best Video (MP4)</label><br>
             <div id="best_video-settings" style="display:none; margin-left:20px;">
                 <p>Downloads best available MP4 video + M4A audio.</p>
-                <label>Download Subtitles:</label>
-                <input type="checkbox" name="write_subs" value="true">
+                <label>Include Subs if Any:</label>
+                <input type="checkbox" name="include_subs" value="true">
             </div>
 
             <br>
