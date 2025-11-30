@@ -8,29 +8,6 @@ app = Flask(__name__)
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# Options
-def longer_than(info, min_duration, *, incomplete):
-    duration = info.get('duration')
-    if duration and duration < min_duration:
-        return f"Video shorter than {min_duration}s"
-
-class MyLogger:
-    def __init__(self, debug=False):
-        self.debug_enabled = debug
-    def debug(self, msg):
-        if msg.startswith('[debug] '):
-            if self.debug_enabled:
-                print(msg)
-        else:
-            self.info(msg)
-    def info(self, msg): print(msg)
-    def warning(self, msg): print("WARNING:", msg)
-    def error(self, msg): print("ERROR:", msg)
-
-def my_hook(d):
-    if d['status'] == 'finished':
-        print('Done downloading, now post-processing ...')
-
 # Common options builder
 def build_common_opts(download_path, include_subs=False):
     opts = {
@@ -40,7 +17,7 @@ def build_common_opts(download_path, include_subs=False):
             {'key': 'EmbedThumbnail'},   # --embed-thumbnail
         ],
         'writethumbnail': True,
-        'noplaylist': True,             # force single video
+        'noplaylist': True,             # force single video only
     }
     if include_subs:
         opts['writesubtitles'] = True
@@ -92,31 +69,6 @@ def index():
                 info = ydl.extract_info(url, download=True)
                 download_path = get_final_filepath(info, ydl)
 
-        elif mode == "filter":
-            min_duration = int(request.form.get("min_duration", 60))
-            def custom_filter(info, *, incomplete):
-                return longer_than(info, min_duration, incomplete=incomplete)
-            ydl_opts = build_common_opts(
-                os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                include_subs=include_subs
-            )
-            ydl_opts['match_filter'] = custom_filter
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                download_path = get_final_filepath(info, ydl)
-
-        elif mode == "logger":
-            debug = request.form.get("debug") == "true"
-            ydl_opts = build_common_opts(
-                os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-                include_subs=include_subs
-            )
-            ydl_opts['logger'] = MyLogger(debug=debug)
-            ydl_opts['progress_hooks'] = [my_hook]
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                download_path = get_final_filepath(info, ydl)
-
         elif mode == "best_video":
             ydl_opts = build_common_opts(
                 os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
@@ -136,7 +88,7 @@ def index():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>YouTube Downloader Advanced</title>
+        <title>YouTube Downloader</title>
         <script>
         function showSettings(mode) {
             document.querySelectorAll('[id$="-settings"]').forEach(div => div.style.display = "none");
@@ -147,7 +99,7 @@ def index():
         </script>
     </head>
     <body>
-        <h1>YouTube Downloader Advanced</h1>
+        <h1>YouTube Downloader</h1>
         <form method="POST">
             <label><input type="radio" name="mode" value="audio" onclick="showSettings('audio')" required> Extract Audio</label><br>
             <div id="audio-settings" style="display:none; margin-left:20px;">
@@ -157,22 +109,6 @@ def index():
                     <option value="mp3">mp3</option>
                     <option value="wav">wav</option>
                 </select><br>
-                <label>Include Subs if Any:</label>
-                <input type="checkbox" name="include_subs" value="true">
-            </div>
-
-            <label><input type="radio" name="mode" value="filter" onclick="showSettings('filter')"> Filter Videos</label><br>
-            <div id="filter-settings" style="display:none; margin-left:20px;">
-                <label>Minimum Duration (seconds):</label>
-                <input type="number" name="min_duration" value="60"><br>
-                <label>Include Subs if Any:</label>
-                <input type="checkbox" name="include_subs" value="true">
-            </div>
-
-            <label><input type="radio" name="mode" value="logger" onclick="showSettings('logger')"> Logger + Progress Hook</label><br>
-            <div id="logger-settings" style="display:none; margin-left:20px;">
-                <label>Enable Debug:</label>
-                <input type="checkbox" name="debug" value="true"><br>
                 <label>Include Subs if Any:</label>
                 <input type="checkbox" name="include_subs" value="true">
             </div>
