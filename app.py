@@ -40,11 +40,18 @@ def build_common_opts(download_path, include_subs=False):
             {'key': 'EmbedThumbnail'},   # --embed-thumbnail
         ],
         'writethumbnail': True,
+        'noplaylist': True,             # force single video
     }
     if include_subs:
         opts['writesubtitles'] = True
         opts['subtitleslangs'] = ['en']  # adjust language if needed
     return opts
+
+# Helper to get final file path
+def get_final_filepath(info, ydl):
+    if "requested_downloads" in info and info["requested_downloads"]:
+        return info["requested_downloads"][0]["filepath"]
+    return ydl.prepare_filename(info)
 
 # Route
 @app.route("/", methods=["GET", "POST"])
@@ -71,7 +78,6 @@ def index():
 
         if mode == "audio":
             codec = request.form.get("codec", "m4a")
-            playlist_items = request.form.get("playlist_items")
             ydl_opts = build_common_opts(
                 os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
                 include_subs=include_subs
@@ -81,14 +87,10 @@ def index():
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': codec
             })
-            # Default to first item if none specified
-            ydl_opts['playlist_items'] = playlist_items if playlist_items else '1'
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                download_path = info.get("_filename") or ydl.prepare_filename(info)
-                base, _ = os.path.splitext(download_path)
-                download_path = f"{base}.{codec}"
+                download_path = get_final_filepath(info, ydl)
 
         elif mode == "filter":
             min_duration = int(request.form.get("min_duration", 60))
@@ -101,7 +103,7 @@ def index():
             ydl_opts['match_filter'] = custom_filter
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                download_path = info.get("_filename") or ydl.prepare_filename(info)
+                download_path = get_final_filepath(info, ydl)
 
         elif mode == "logger":
             debug = request.form.get("debug") == "true"
@@ -113,7 +115,7 @@ def index():
             ydl_opts['progress_hooks'] = [my_hook]
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                download_path = info.get("_filename") or ydl.prepare_filename(info)
+                download_path = get_final_filepath(info, ydl)
 
         elif mode == "best_video":
             ydl_opts = build_common_opts(
@@ -123,7 +125,7 @@ def index():
             ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                download_path = info.get("_filename") or ydl.prepare_filename(info)
+                download_path = get_final_filepath(info, ydl)
 
         # Send file
         if download_path:
@@ -155,8 +157,6 @@ def index():
                     <option value="mp3">mp3</option>
                     <option value="wav">wav</option>
                 </select><br>
-                <label>Playlist Items (ordered pairs):</label>
-                <input type="text" name="playlist_items" placeholder="e.g. 1,3,5 or 2-4"><br>
                 <label>Include Subs if Any:</label>
                 <input type="checkbox" name="include_subs" value="true">
             </div>
