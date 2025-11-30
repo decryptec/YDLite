@@ -8,7 +8,7 @@ app = Flask(__name__)
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-#Options
+# Options
 def longer_than(info, min_duration, *, incomplete):
     duration = info.get('duration')
     if duration and duration < min_duration:
@@ -31,27 +31,42 @@ def my_hook(d):
     if d['status'] == 'finished':
         print('Done downloading, now post-processing ...')
 
-#Route
+# Common options builder
+def build_common_opts(download_path, write_subs=False):
+    opts = {
+        'outtmpl': download_path,
+        'postprocessors': [
+            {'key': 'FFmpegMetadata'},   # --add-metadata
+            {'key': 'EmbedThumbnail'},   # --embed-thumbnail
+        ],
+        'writethumbnail': True,
+    }
+    if write_subs:
+        opts['writesubtitles'] = True
+        opts['subtitleslangs'] = ['en']  # adjust language if needed
+    return opts
+
+# Route
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = ""
     if request.method == "POST":
         url = request.form.get("URL")
         mode = request.form.get("mode")
+        write_subs = request.form.get("write_subs") == "true"
         download_path = None
 
-        if mode == "info":
-            with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
-                info = ydl.extract_info(url, download=False)
-                result = json.dumps(ydl.sanitize_info(info), indent=2)
-
-        elif mode == "audio":
+        if mode == "audio":
             codec = request.form.get("codec", "m4a")
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': codec}],
-                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s')
-            }
+            ydl_opts = build_common_opts(
+                os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+                write_subs=write_subs
+            )
+            ydl_opts['format'] = 'bestaudio/best'
+            ydl_opts['postprocessors'].insert(0, {
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': codec
+            })
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
@@ -62,35 +77,38 @@ def index():
             min_duration = int(request.form.get("min_duration", 60))
             def custom_filter(info, *, incomplete):
                 return longer_than(info, min_duration, incomplete=incomplete)
-            ydl_opts = {
-                'match_filter': custom_filter,
-                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s')
-            }
+            ydl_opts = build_common_opts(
+                os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+                write_subs=write_subs
+            )
+            ydl_opts['match_filter'] = custom_filter
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
 
         elif mode == "logger":
             debug = request.form.get("debug") == "true"
-            ydl_opts = {
-                'logger': MyLogger(debug=debug),
-                'progress_hooks': [my_hook],
-                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s')
-            }
+            ydl_opts = build_common_opts(
+                os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+                write_subs=write_subs
+            )
+            ydl_opts['logger'] = MyLogger(debug=debug)
+            ydl_opts['progress_hooks'] = [my_hook]
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
 
         elif mode == "best_video":
-            ydl_opts = {
-                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-                'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s')
-            }
+            ydl_opts = build_common_opts(
+                os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+                write_subs=write_subs
+            )
+            ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
 
-        #Delete file after sending
+        # Delete file after sending
         if download_path:
             @after_this_request
             def remove_file(response):
@@ -120,36 +138,39 @@ def index():
     <body>
         <h1>YouTube Downloader Advanced</h1>
         <form method="POST">
-            <label><input type="radio" name="mode" value="info" onclick="showSettings('info')" required> Extract Info</label><br>
-            <div id="info-settings" style="display:none; margin-left:20px;">
-                <p>No extra settings for info mode.</p>
-            </div>
-
-            <label><input type="radio" name="mode" value="audio" onclick="showSettings('audio')"> Extract Audio</label><br>
+            <label><input type="radio" name="mode" value="audio" onclick="showSettings('audio')" required> Extract Audio</label><br>
             <div id="audio-settings" style="display:none; margin-left:20px;">
                 <label>Codec:</label>
                 <select name="codec">
                     <option value="m4a">m4a</option>
                     <option value="mp3">mp3</option>
                     <option value="wav">wav</option>
-                </select>
+                </select><br>
+                <label>Download Subtitles:</label>
+                <input type="checkbox" name="write_subs" value="true">
             </div>
 
             <label><input type="radio" name="mode" value="filter" onclick="showSettings('filter')"> Filter Videos</label><br>
             <div id="filter-settings" style="display:none; margin-left:20px;">
                 <label>Minimum Duration (seconds):</label>
-                <input type="number" name="min_duration" value="60">
+                <input type="number" name="min_duration" value="60"><br>
+                <label>Download Subtitles:</label>
+                <input type="checkbox" name="write_subs" value="true">
             </div>
 
             <label><input type="radio" name="mode" value="logger" onclick="showSettings('logger')"> Logger + Progress Hook</label><br>
             <div id="logger-settings" style="display:none; margin-left:20px;">
                 <label>Enable Debug:</label>
-                <input type="checkbox" name="debug" value="true">
+                <input type="checkbox" name="debug" value="true"><br>
+                <label>Download Subtitles:</label>
+                <input type="checkbox" name="write_subs" value="true">
             </div>
 
             <label><input type="radio" name="mode" value="best_video" onclick="showSettings('best_video')"> Download Best Video (MP4)</label><br>
             <div id="best_video-settings" style="display:none; margin-left:20px;">
                 <p>Downloads best available MP4 video + M4A audio.</p>
+                <label>Download Subtitles:</label>
+                <input type="checkbox" name="write_subs" value="true">
             </div>
 
             <br>
