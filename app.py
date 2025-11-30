@@ -1,6 +1,7 @@
-from flask import Flask, request, render_template_string, send_file, after_this_request
+from flask import Flask, request, render_template_string, send_file
 import yt_dlp
 import os
+import shutil
 
 app = Flask(__name__)
 
@@ -50,6 +51,19 @@ def build_common_opts(download_path, include_subs=False):
 def index():
     result = ""
     if request.method == "POST":
+        # cleanup downloads directory except readme.md ---
+        for fname in os.listdir(DOWNLOAD_DIR):
+            fpath = os.path.join(DOWNLOAD_DIR, fname)
+            if fname.lower() != "readme.md":
+                try:
+                    if os.path.isfile(fpath):
+                        os.remove(fpath)
+                    elif os.path.isdir(fpath):
+                        shutil.rmtree(fpath)
+                    print(f"Deleted {fpath}")
+                except Exception as e:
+                    print(f"Error deleting {fpath}: {e}")
+
         url = request.form.get("URL")
         mode = request.form.get("mode")
         include_subs = request.form.get("include_subs") == "true"
@@ -107,16 +121,8 @@ def index():
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
 
-        # Delete file after sending
+        # Just send the file — no call_on_close cleanup
         if download_path:
-            @after_this_request
-            def remove_file(response):
-                try:
-                    os.remove(download_path)
-                    print(f"Deleted {download_path}")
-                except Exception as e:
-                    print(f"Error deleting file: {e}")
-                return response
             return send_file(download_path, as_attachment=True)
 
     # frontend form
