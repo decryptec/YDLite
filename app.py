@@ -71,6 +71,7 @@ def index():
 
         if mode == "audio":
             codec = request.form.get("codec", "m4a")
+            playlist_items = request.form.get("playlist_items")
             ydl_opts = build_common_opts(
                 os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
                 include_subs=include_subs
@@ -80,6 +81,9 @@ def index():
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': codec
             })
+            # Default to first item if none specified
+            ydl_opts['playlist_items'] = playlist_items if playlist_items else '1'
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
@@ -121,7 +125,7 @@ def index():
                 info = ydl.extract_info(url, download=True)
                 download_path = info.get("_filename") or ydl.prepare_filename(info)
 
-        # Just send the file — no call_on_close cleanup
+        # Send file
         if download_path:
             return send_file(download_path, as_attachment=True)
 
@@ -151,6 +155,8 @@ def index():
                     <option value="mp3">mp3</option>
                     <option value="wav">wav</option>
                 </select><br>
+                <label>Playlist Items (ordered pairs):</label>
+                <input type="text" name="playlist_items" placeholder="e.g. 1,3,5 or 2-4"><br>
                 <label>Include Subs if Any:</label>
                 <input type="checkbox" name="include_subs" value="true">
             </div>
