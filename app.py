@@ -85,50 +85,133 @@ def index():
 
     # frontend form
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>YouTube Downloader</title>
-        <script>
-        function showSettings(mode) {
-            document.querySelectorAll('[id$="-settings"]').forEach(div => div.style.display = "none");
-            if (mode) {
-                document.getElementById(mode + "-settings").style.display = "block";
-            }
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YouTube Downloader</title>
+
+    <!-- Mobile scaling -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
         }
-        </script>
-    </head>
-    <body>
+
+        .container {
+            background: white;
+            margin-top: 40px;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-size: 1.1rem;
+            display: block;
+            margin-top: 12px;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1rem;
+            margin-top: 6px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056cc;
+        }
+
+        .settings {
+            margin-left: 15px;
+            padding: 10px 0;
+        }
+    </style>
+
+    <script>
+    function showSettings(mode) {
+        document.querySelectorAll('[id$="-settings"]').forEach(div => div.style.display = "none");
+        if (mode) {
+            document.getElementById(mode + "-settings").style.display = "block";
+        }
+    }
+    </script>
+</head>
+
+<body>
+    <div class="container">
         <h1>YouTube Downloader</h1>
+
         <form method="POST">
-            <label><input type="radio" name="mode" value="audio" onclick="showSettings('audio')" required> Extract Audio</label><br>
-            <div id="audio-settings" style="display:none; margin-left:20px;">
+
+            <label>
+                <input type="radio" name="mode" value="audio" onclick="showSettings('audio')" required>
+                Extract Audio
+            </label>
+
+            <div id="audio-settings" class="settings" style="display:none;">
                 <label>Codec:</label>
                 <select name="codec">
                     <option value="m4a">m4a</option>
                     <option value="mp3">mp3</option>
                     <option value="wav">wav</option>
-                </select><br>
+                </select>
+
                 <label>Include Subs if Any:</label>
                 <input type="checkbox" name="include_subs" value="true">
             </div>
 
-            <label><input type="radio" name="mode" value="best_video" onclick="showSettings('best_video')"> Download Best Video (MP4)</label><br>
-            <div id="best_video-settings" style="display:none; margin-left:20px;">
+            <label>
+                <input type="radio" name="mode" value="best_video" onclick="showSettings('best_video')">
+                Download Best Video (MP4)
+            </label>
+
+            <div id="best_video-settings" class="settings" style="display:none;">
                 <p>Downloads best available MP4 video + M4A audio.</p>
                 <label>Include Subs if Any:</label>
                 <input type="checkbox" name="include_subs" value="true">
             </div>
 
-            <br>
-            <label>YouTube URL:</label><br>
-            <input type="text" name="URL" placeholder="https://youtube.com/..." required><br><br>
+            <label>YouTube URL:</label>
+            <input type="text" name="URL" placeholder="https://youtube.com/..." required>
 
             <button type="submit">Submit</button>
         </form>
-    </body>
-    </html>
-    """
+    </div>
+</body>
+</html>
+"""
+
     return render_template_string(html, result=result)
 
 if __name__ == "__main__":
