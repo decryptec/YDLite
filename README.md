@@ -20,4 +20,4 @@ Download videos or audio from supported platforms using a clean and minimal brow
 2. Install dependencies:
 
    ```bash
-   pip install flask yt-dlp
+   pip install flask yt-dlp validators
